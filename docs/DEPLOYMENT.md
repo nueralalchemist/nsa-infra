@@ -101,6 +101,8 @@ Use the **same model for both aliases** on a small box: Ollama keeps one model l
 
 ## 5. Measured footprint (4 vCPU / 8 GiB / 16 GiB root, Debian 13)
 
+Measured on the test provider's VM (see [section 7](#7-choosing-a-cloud-provider)); other providers will differ mainly in network speed.
+
 | Item | Result |
 |---|---|
 | Fresh install, command to "All checks passed" | 66 s on a fast network (about 1 minute of downloads included) |
@@ -124,10 +126,27 @@ A 16 GiB root disk therefore holds **one** extra model at most. Keep an eye on `
 | Reboot | services return on their own (verified) |
 | Tear down | delete the machine. There is nothing to back up. |
 
-## 7. Notes for instabox users
+## 7. Choosing a cloud provider
 
-Verified on a real instabox machine (free plan):
+NSA does not depend on a particular provider. Any of them will do if the machine offers:
 
-- Use the `instabox` CLI instead of ssh/scp: `instabox push`, `instabox exec --background` (+ `jobs wait`), and `instabox port-forward <machine> 4000:4000` as the tunnel. The runbook has the exact sequence.
-- The free plan allows **one** machine: replacing it means deleting the old one (nothing in the box is worth keeping).
-- Idle machines pause after 30 minutes and runtime is capped by the plan; systemd services restart when the machine wakes. The tunnel drops while it is paused. *(Pause/resume was not exercised.)*
+| Check | Why it matters |
+|---|---|
+| Debian or Ubuntu image, x86_64 or aarch64 | the installer uses `apt` |
+| SSH access with root or passwordless `sudo` | the installer creates a user, services and files under `/etc` and `/opt` |
+| systemd | services restart on reboot (the shell edition falls back to `nohup` without it) |
+| Outbound HTTPS to `ollama.com`, `registry.ollama.ai`, `pypi.org` | downloads; `preflight` tests these |
+| ≥ 10 GB free on `/` and ≥ 6 GB RAM | one 4B model, Ollama and LiteLLM; see the footprint above |
+| `/dev/net/tun` (Tailscale mode only) | otherwise use `NSA_EXPOSE=localhost` and an SSH tunnel |
+
+Things worth reading in your provider's terms before relying on it: the number of machines your plan allows, idle auto-pause and maximum runtime (services restart on wake, but any tunnel drops while the machine is paused), and what the operator may see on a machine you do not control (see [SECURITY.md](SECURITY.md)).
+
+Run `./shell/bootstrap.sh preflight` on a new machine first. It checks every item above in a few seconds and changes nothing.
+
+### Example: the provider used in our tests (instabox)
+
+The real-machine results in this repository were obtained on [instabox](https://instabox.sh) VMs (free plan, Debian 13, 4 vCPU / 8 GiB, 16 GiB root disk):
+
+- Its CLI can replace `ssh`/`scp`: `instabox push`, `instabox exec --background` (+ `jobs wait`) and `instabox port-forward <machine> 4000:4000` as the tunnel. The exact sequence is in the [runbook appendix](../infra/RUNBOOK.md#appendix-using-a-provider-cli-example-instabox).
+- The free plan allowed **one** machine, so rebuilding meant deleting the old one first (nothing on it was worth keeping).
+- Idle machines pause after 30 minutes and runtime is capped by the plan. *(Pause and resume were not exercised.)*

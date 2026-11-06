@@ -91,7 +91,7 @@ nsa tunnel [--port 4000] [-i IDENTITY] [--dry-run] TARGET
 
 Runs `ssh -N -L 127.0.0.1:PORT:127.0.0.1:PORT -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 ... -- TARGET` in the foreground (Ctrl+C closes it). `TARGET` is `user@host` or an `~/.ssh/config` alias; anything that could be read as an ssh option is rejected. Use an alias when the server needs a custom port or key.
 
-On instabox you can use its own tunnel instead: `instabox port-forward <machine> 4000:4000`.
+Providers that ship their own port-forward command can be used instead; all that matters is that the gateway's port appears on `127.0.0.1:4000` locally.
 
 ## Exit status
 

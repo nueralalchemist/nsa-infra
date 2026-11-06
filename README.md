@@ -62,6 +62,8 @@ Details, pipelines, limits and how to **write your own agent**: [docs/AGENTS.md]
 
 ## Adding a cloud gateway (optional)
 
+Any Debian or Ubuntu VM with SSH and root access, from **any cloud provider**, can host the gateway. (Our tests used VMs from [instabox](https://instabox.sh); nothing in the code or installers is specific to it.)
+
 ```bash
 # on a fresh Debian/Ubuntu machine, from the files in infra/
 ./shell/bootstrap.sh preflight                                   # read-only: can it host the gateway?
@@ -69,7 +71,7 @@ cp infra.env.example infra.env && sed -i 's/^NSA_EXPOSE=.*/NSA_EXPOSE=localhost/
 sudo -E ./shell/bootstrap.sh server                              # Ollama + LiteLLM + smoke test
 
 # on your workstation
-nsa tunnel myhost &                                              # or: instabox port-forward <machine> 4000:4000
+nsa tunnel myhost &                                              # or your provider's own port-forward tool
 nsa connect --url http://127.0.0.1:4000/v1 --key-file ~/nsa-gateway.key
 nsa run -m cloud -a assistant "In two sentences, what is a SIEM?"
 ```
@@ -120,7 +122,7 @@ docs/           the documentation above
 - **Cloud box = third party.** Do not send customer data, SIEM exports or malware to it. Redaction is best-effort regex ([SECURITY.md](docs/SECURITY.md)).
 - **Gateway auth is a single shared key**, and LiteLLM without a database answers bad keys with HTTP 400/500 (it fails closed).
 - **Not yet verified:** the Ansible playbook against a real host, Tailscale mode, pause/resume of a provider-paused machine, key rotation, aarch64 ([matrix](docs/TESTING.md#4-infrastructure-verification-matrix)).
-- Tested server OS: Debian 13 (4 vCPU / 8 GiB). Tested client OS: Ubuntu 24.04 on WSL2.
+- Tested server: Debian 13 VMs (4 vCPU / 8 GiB) from one provider, instabox; other providers and distributions should work but are untested. Tested client OS: Ubuntu 24.04 on WSL2.
 
 ## Contributing and security
 

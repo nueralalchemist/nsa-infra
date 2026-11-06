@@ -2,55 +2,39 @@
 
 Goal: **a brand-new machine + this folder + one script = a working cloud gateway that your workstation's `nsa` can use**, and a machine you can throw away and rebuild the same way.
 
-This sequence has been run end to end on real Debian 13 machines (4 vCPU / 8 GiB): fresh install, re-runs, a reboot, a model swap, and a rebuild on a brand-new machine. It has **not** been run on other distributions or architectures, and Tailscale mode and the Ansible edition are untested. If something fails, see [If something fails](#if-something-fails).
+This sequence has been run end to end on real Debian 13 machines (4 vCPU / 8 GiB, from instabox): fresh install, re-runs, a reboot, a model swap, and a rebuild on a brand-new machine. It has **not** been run on other distributions or architectures, and Tailscale mode and the Ansible edition are untested. If something fails, see [If something fails](#if-something-fails).
 
-Conventions: `WSL$` = your workstation (WSL, Linux or macOS), `BOX$` = the gateway machine. If you log in as `root` on the box, drop `sudo`. The examples use [instabox](https://instabox.sh) for the machine; any Debian/Ubuntu host works.
+**Any cloud provider works** as long as it gives you a Debian or Ubuntu machine with SSH access and root or `sudo`. The commands below use plain `ssh`/`scp`, so they are provider-neutral. In our own testing the machines came from [instabox](https://instabox.sh); the [appendix](#appendix-using-a-provider-cli-example-instabox) shows the shortcuts its CLI offers.
+
+Conventions: `WSL$` = your workstation (WSL, Linux or macOS), `BOX$` = the gateway machine. If you log in as `root` on the box, drop `sudo`.
 
 ## 0. Before you start
 
-Create the machine in instabox (Ubuntu or Debian image if you can choose). Then add an alias to `~/.ssh/config` on **WSL** using whatever host, user, port and key instabox gives you. Using an alias keeps every later command identical:
+Create the machine at your provider (choose a Debian or Ubuntu image if you can). Then add an alias to `~/.ssh/config` on **WSL** using the host, user, port and key your provider gives you. Using an alias keeps every later command identical:
 
 ```
-Host instabox
+Host nsa-gateway
   HostName <ip-or-hostname>
   User <user>
   Port <port-if-not-22>
   IdentityFile ~/.ssh/<your-key>
 ```
 
-Check you can log in: `WSL$ ssh instabox 'hostname; whoami'`.
-
-## Shortcut: the instabox CLI (verified end to end on a real machine)
-
-If `instabox whoami` works on your WSL, you can skip SSH aliases and scp. This is exactly what was used to test it (`BOX` = the machine name from `instabox ls`):
-
-```bash
-WSL$ BOX=my-machine
-WSL$ cd ~/neural_security_agent && instabox push $BOX ./infra /data/home/                       # upload installer
-WSL$ instabox exec $BOX -- 'cd ~/infra && ./shell/bootstrap.sh preflight'                       # check
-WSL$ instabox exec $BOX -- 'cd ~/infra && cp infra.env.example infra.env && sed -i "s/^NSA_EXPOSE=.*/NSA_EXPOSE=localhost/" infra.env'
-WSL$ instabox exec --background $BOX -- 'cd ~/infra && sudo -E ./shell/bootstrap.sh server > ~/nsa-install.log 2>&1'   # prints a job id
-WSL$ instabox jobs wait $BOX <job-id> --timeout 9m; instabox exec $BOX -- 'tail -30 ~/nsa-install.log'
-WSL$ instabox exec $BOX -- 'sudo grep "^LITELLM_MASTER_KEY=" /etc/nsa/gateway.env' | cut -d= -f2- | tr -d '\r\n' > ~/nsa-gateway.key; chmod 600 ~/nsa-gateway.key
-WSL$ instabox port-forward $BOX 4000:4000 &                                                      # the tunnel
-WSL$ nsa connect --url http://127.0.0.1:4000/v1 --key-file ~/nsa-gateway.key
-```
-
-The generic ssh/scp steps below are equivalent for any other provider. Timings measured on a real instabox machine (4 vCPU / 8 GiB, free plan): full install ~1 minute on its fast network (about 6 GB of disk used on `/`), gateway ready ~20 s after a restart, SOC triage 27 s, Sigma rule with self-test 36 s, research plan about 2 minutes.
+Check you can log in: `WSL$ ssh nsa-gateway 'hostname; whoami'`.
 
 ## 1. Put the installer on the box
 
-You have not pushed to GitHub yet, so use the tarball (it contains only `infra/`, 20 KB, no secrets):
+If the repository is not somewhere the machine can clone from, use a tarball (it contains only `infra/`, 20 KB, no secrets):
 
 ```bash
 WSL$ cd ~/neural_security_agent
 WSL$ tar --exclude='__pycache__' --exclude='infra/infra.env' --exclude='infra/ansible/inventory.ini' -czf /tmp/nsa-infra.tgz infra
-WSL$ scp /tmp/nsa-infra.tgz instabox:~/
-WSL$ ssh instabox
+WSL$ scp /tmp/nsa-infra.tgz nsa-gateway:~/
+WSL$ ssh nsa-gateway
 BOX$ tar -xzf nsa-infra.tgz && cd infra
 ```
 
-(After you push the repo you can use `git clone` instead.)
+(If the machine can reach your repository, `git clone` it instead.)
 
 ## 2. Preflight (changes nothing)
 
@@ -77,7 +61,7 @@ BOX$ sudo -E ./shell/bootstrap.sh server --dry-run | head -70
 BOX$ sudo -E ./shell/bootstrap.sh server 2>&1 | tee ~/nsa-install.log
 ```
 
-Estimated 10-25 minutes, mostly downloads (Ollama ~2 GB, the model ~2.5 GB, LiteLLM ~0.7 GB). These are estimates; I could not measure them on instabox. Success looks like:
+Estimated 10-25 minutes, mostly downloads (Ollama ~2 GB, the model ~2.5 GB, LiteLLM ~0.7 GB). These are estimates that depend on your network and the machine; on a fast network the install took about a minute in our tests. Success looks like:
 
 ```
   PASS gateway is alive
@@ -97,7 +81,7 @@ Quick health check you can repeat any time: `BOX$ sudo ./shell/bootstrap.sh veri
 ## 5. Bring the gateway key to WSL (never paste it into a chat)
 
 ```bash
-WSL$ ssh instabox "sudo grep '^LITELLM_MASTER_KEY=' /etc/nsa/gateway.env" | cut -d= -f2- > ~/nsa-gateway.key
+WSL$ ssh nsa-gateway "sudo grep '^LITELLM_MASTER_KEY=' /etc/nsa/gateway.env" | cut -d= -f2- > ~/nsa-gateway.key
 WSL$ chmod 600 ~/nsa-gateway.key && wc -c ~/nsa-gateway.key
 ```
 
@@ -109,7 +93,7 @@ Terminal 1 (leave it running; Ctrl+C closes the tunnel):
 
 ```bash
 WSL$ cd ~/neural_security_agent && source .venv/bin/activate
-WSL$ nsa tunnel instabox
+WSL$ nsa tunnel nsa-gateway
 ```
 
 Terminal 2:
@@ -136,7 +120,7 @@ WSL$ nsa run -m cloud -a soc_triage --allow-sensitive-cloud "Alert: 40 failed lo
 WSL$ nsa run -m auto -a assistant "Name three logging best practices."
 ```
 
-1. and 2. answer from the box (slow: estimate 10-60 s each; I have not measured CPU speed on instabox).
+1. and 2. answer from the box (slow on a CPU-only machine; the times we measured are in [DEPLOYMENT.md](../docs/DEPLOYMENT.md#5-measured-footprint-4-vcpu--8-gib--16-gib-root-debian-13)).
 3. is **blocked** with `local-only` and sends nothing: that is the sensitivity gate working.
 4. goes through with prompts redacted (the private IP never leaves WSL).
 5. uses your **local GPU** (auto prefers local).
@@ -160,7 +144,7 @@ Both hashes must match.
 ```bash
 BOX$ sudo reboot
 # wait ~1 minute, then
-WSL$ ssh instabox 'systemctl is-active ollama nsa-gateway && sudo /home/$USER/infra/shell/bootstrap.sh verify | tail -3'
+WSL$ ssh nsa-gateway 'systemctl is-active ollama nsa-gateway && sudo /home/$USER/infra/shell/bootstrap.sh verify | tail -3'
 ```
 
 **The real claim (rebuild from scratch):** when you are done, delete the machine, create a new one, and repeat sections 1-6 with the **same** commands. You should need nothing else except the new key (`nsa connect` with the new key file). If anything extra was needed, tell me: that is a bug in the playbook.
@@ -199,3 +183,21 @@ BOX$ systemctl is-active ollama nsa-gateway; ss -ltnp | grep -E ':(4000|11434)'
 BOX$ ollama list; df -h / | tail -1; free -h | head -2
 WSL$ nsa doctor
 ```
+
+## Appendix: using a provider CLI (example: instabox)
+
+Some providers ship a CLI that uploads files, runs commands and forwards ports, which replaces `ssh`/`scp`. This is the exact sequence used in our testing with the **instabox** CLI (`BOX` = the machine name from `instabox ls`). The commands and the `/data/home` path are specific to instabox; adapt them to your provider's tool.
+
+```bash
+WSL$ BOX=my-machine
+WSL$ cd ~/neural_security_agent && instabox push $BOX ./infra /data/home/                       # upload installer
+WSL$ instabox exec $BOX -- 'cd ~/infra && ./shell/bootstrap.sh preflight'                       # check
+WSL$ instabox exec $BOX -- 'cd ~/infra && cp infra.env.example infra.env && sed -i "s/^NSA_EXPOSE=.*/NSA_EXPOSE=localhost/" infra.env'
+WSL$ instabox exec --background $BOX -- 'cd ~/infra && sudo -E ./shell/bootstrap.sh server > ~/nsa-install.log 2>&1'   # prints a job id
+WSL$ instabox jobs wait $BOX <job-id> --timeout 9m; instabox exec $BOX -- 'tail -30 ~/nsa-install.log'
+WSL$ instabox exec $BOX -- 'sudo grep "^LITELLM_MASTER_KEY=" /etc/nsa/gateway.env' | cut -d= -f2- | tr -d '\r\n' > ~/nsa-gateway.key; chmod 600 ~/nsa-gateway.key
+WSL$ instabox port-forward $BOX 4000:4000 &                                                      # the tunnel
+WSL$ nsa connect --url http://127.0.0.1:4000/v1 --key-file ~/nsa-gateway.key
+```
+
+The plain ssh/scp steps in sections 1 to 6 are equivalent. Timings measured on a real instabox machine (4 vCPU / 8 GiB, free plan): full install ~1 minute on its fast network (about 6 GB of disk used on `/`), gateway ready ~20 s after a restart, SOC triage 27 s, Sigma rule with self-test 36 s, research plan about 2 minutes.

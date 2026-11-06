@@ -86,10 +86,10 @@ nsa connect --url http://127.0.0.1:4000/v1 --key-file ~/nsa-gateway.key
 
 Work through, in order:
 
-1. **Tunnel/tailnet up?** `nsa tunnel <host>` (or `instabox port-forward <machine> 4000:4000`) must be running; in Tailscale mode `tailscale status` on both ends.
+1. **Tunnel/tailnet up?** `nsa tunnel <host>` (or your provider's own port-forward tool, mapping the gateway's port 4000 to `127.0.0.1:4000`) must be running; in Tailscale mode `tailscale status` on both ends.
 2. **Port busy locally?** The tunnel fails at once if `127.0.0.1:4000` is in use: `ss -ltn | grep :4000`.
 3. **Gateway running?** On the host: `systemctl is-active nsa-gateway`, `sudo journalctl -u nsa-gateway -n 50`. After a restart it needs about 20 s.
-4. **Machine paused?** Some providers pause idle machines (instabox: after 30 minutes). Wake it and restart the tunnel.
+4. **Machine paused?** Some providers pause idle machines (the provider used in our tests documents a 30-minute idle pause). Wake it and restart the tunnel.
 5. **Right URL?** It must end in `/v1`; `nsa connect` adds it.
 
 `-m auto` keeps working locally while the cloud is down.

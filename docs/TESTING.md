@@ -51,6 +51,8 @@ The Sigma test is deliberately strict and **fails occasionally** (about 1 run in
 
 ## 4. Infrastructure verification matrix
 
+The "real machine" checks below used Debian 13 VMs (4 vCPU / 8 GiB) from one cloud provider, [instabox](https://instabox.sh), plus Ubuntu 24.04 on WSL2 for the client. Nothing in the installers is provider-specific, but **only that provider has been tested**.
+
 | Area | How it was checked | Status |
 |---|---|---|
 | Shell installer: static | `shellcheck` clean, `bash -n`, `--dry-run` on every path | ✅ |
