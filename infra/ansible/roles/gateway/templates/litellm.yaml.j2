@@ -1,0 +1,14 @@
+model_list:
+{% for m in nsa_models %}
+  - model_name: "{{ m }}"
+    litellm_params:
+      model: "ollama_chat/{{ m }}"
+      api_base: "http://127.0.0.1:11434"
+{% endfor %}
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true
+  telemetry: false

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nsa"
+version = "0.1.0"
+description = "NSA: Neural Security Agent. A local-first agent CLI for security engineering with local and cloud model modes."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+infra-dev = ["ansible-core>=2.16", "ansible-lint>=24", "shellcheck-py>=0.10"]  # lint/validate the playbooks
+
+[project.scripts]
+nsa = "nsa.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["nsa*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not live'"
+markers = ["live: needs a running local model (set NSA_LIVE=1, run with -m live)"]

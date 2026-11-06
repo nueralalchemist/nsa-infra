@@ -1,0 +1,6 @@
+---
+- name: Restart nsa-gateway
+  ansible.builtin.systemd:
+    name: nsa-gateway
+    state: restarted
+    daemon_reload: true

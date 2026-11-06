@@ -1,0 +1,25 @@
+# Agents never name a model. They ask for an alias; this file maps alias -> real model
+# per mode. Moving to bigger infra means editing these names (or the NSA_MODEL_* env vars).
+aliases:
+  main:   # reasoning / generation
+    # Empty = the model's default (Qwen3 reasons first: slower but better). Set to "none" on slow CPU-only boxes.
+    reasoning_effort:
+      local: ${NSA_MAIN_REASONING_LOCAL:-}
+      cloud: ${NSA_MAIN_REASONING_CLOUD:-}
+    local: ${NSA_MODEL_MAIN_LOCAL:-qwen3:8b}
+    cloud: ${NSA_MODEL_MAIN_CLOUD:-qwen3:4b-instruct}
+  fast:   # routing, classification, cheap steps
+    # "none" switches hidden reasoning off, but ONLY for models that can toggle it (e.g. qwen3:8b). A thinking-only
+    # model (qwen3:4b-2507, 262k context) cannot, and with "none" its raw reasoning leaks into the answer.
+    # So the cloud default is empty (= model default); set NSA_FAST_REASONING_CLOUD=none only for a hybrid model.
+    reasoning_effort:
+      local: ${NSA_FAST_REASONING_LOCAL:-none}
+      cloud: ${NSA_FAST_REASONING_CLOUD:-}
+    # no_think: true  (Qwen3 '/no_think' suffix: ignored by current Ollama, and echoed back by thinking-only models, so off)
+    local: ${NSA_MODEL_FAST_LOCAL:-qwen3:8b}
+    cloud: ${NSA_MODEL_FAST_CLOUD:-qwen3:4b-instruct}
+
+defaults:
+  temperature: 0.2
+  max_tokens: 4096   # hidden reasoning counts against this budget on reasoning models
+  timeout: ${NSA_LLM_TIMEOUT:-300}   # seconds per request; raise it on CPU-only boxes

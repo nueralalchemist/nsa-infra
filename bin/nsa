@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run NSA straight from a clone, no install needed (requires: python3, httpx, pyyaml).
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec env PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" python3 -m nsa "$@"

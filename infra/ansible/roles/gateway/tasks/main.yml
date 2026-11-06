@@ -1,0 +1,101 @@
+---
+- name: Warn when LiteLLM is not pinned
+  ansible.builtin.debug:
+    msg: "nsa_litellm_version is empty: installing the latest litellm. Pin it once validated."
+  when: nsa_litellm_version | length == 0
+
+- name: Install LiteLLM into its own virtualenv
+  ansible.builtin.pip:
+    name: "litellm[proxy]{{ ('==' ~ nsa_litellm_version) if nsa_litellm_version | length > 0 else '' }}"
+    virtualenv: "{{ nsa_venv_dir }}"
+    virtualenv_command: python3 -m venv
+  notify: Restart nsa-gateway
+
+- name: Look up the Tailscale address to bind to
+  ansible.builtin.command: tailscale ip -4
+  register: gateway_ts_ip
+  changed_when: false
+  check_mode: false
+  when: nsa_expose == 'tailscale'
+
+- name: Decide the bind address
+  ansible.builtin.set_fact:
+    gateway_bind_address: "{{ (gateway_ts_ip.stdout_lines | first) if nsa_expose == 'tailscale' else '127.0.0.1' }}"
+
+- name: Check for an existing gateway env file
+  ansible.builtin.stat:
+    path: "{{ nsa_gateway_env }}"
+  register: gateway_env
+
+- name: Generate the gateway master key (first run only)
+  when: not gateway_env.stat.exists
+  block:
+    - name: Generate a random key
+      ansible.builtin.command: openssl rand -hex 24
+      register: gateway_master_key
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Create the env file
+      ansible.builtin.copy:
+        dest: "{{ nsa_gateway_env }}"
+        content: "LITELLM_MASTER_KEY=sk-{{ gateway_master_key.stdout }}\n"
+        owner: root
+        group: "{{ nsa_user }}"
+        mode: "0640"
+        force: false
+      no_log: true
+
+- name: Set gateway runtime settings
+  ansible.builtin.lineinfile:
+    path: "{{ nsa_gateway_env }}"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    owner: root
+    group: "{{ nsa_user }}"
+    mode: "0640"
+  loop:
+    - { key: NSA_BIND_ADDR, value: "{{ gateway_bind_address }}" }
+    - { key: NSA_GATEWAY_PORT, value: "{{ nsa_gateway_port }}" }
+    - { key: HOME, value: "{{ nsa_state_dir }}" }
+  notify: Restart nsa-gateway
+  when: gateway_env.stat.exists or not ansible_check_mode
+
+- name: Render the LiteLLM config
+  ansible.builtin.template:
+    src: litellm.yaml.j2
+    dest: "{{ nsa_gateway_cfg }}"
+    owner: root
+    group: "{{ nsa_user }}"
+    mode: "0640"
+  notify: Restart nsa-gateway
+
+- name: Install the systemd unit
+  ansible.builtin.template:
+    src: nsa-gateway.service.j2
+    dest: /etc/systemd/system/nsa-gateway.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart nsa-gateway
+
+- name: Enable and start the gateway
+  ansible.builtin.systemd:
+    name: nsa-gateway
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Show connection info
+  ansible.builtin.debug:
+    msg:
+      - "Gateway URL: http://{{ gateway_bind_address }}:{{ nsa_gateway_port }}/v1"
+      - "Models: {{ nsa_models | join(' ') }}"
+      - "API key: sudo cat {{ nsa_gateway_env }}  (LITELLM_MASTER_KEY)"
+      - "{{ gateway_access_hint }}"
+  vars:
+    gateway_tunnel_cmd: "ssh -N -L {{ nsa_gateway_port }}:127.0.0.1:{{ nsa_gateway_port }} <user>@<host>"
+    gateway_access_hint: >-
+      {{ ('Reach it through an SSH tunnel: ' ~ gateway_tunnel_cmd) if nsa_expose == 'localhost'
+         else 'Reachable from any device on your tailnet.' }}

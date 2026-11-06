@@ -1,0 +1,30 @@
+---
+# Enterprise edition: idempotent, tagged, check-mode friendly.
+#   ansible-galaxy collection install -r requirements.yml
+#   ansible-playbook -i inventory.ini site.yml                 # server + client
+#   ansible-playbook -i inventory.ini site.yml --limit nsa_servers --tags ollama,gateway
+#   ansible-playbook -i inventory.ini site.yml --check --diff  # preview
+- name: NSA gateway host (Ollama + LiteLLM)
+  hosts: nsa_servers
+  become: true
+  roles:
+    - role: common
+      tags: [common]
+    - role: tailscale
+      when: nsa_expose == 'tailscale'
+      tags: [tailscale]
+    - role: ollama
+      tags: [ollama]
+    - role: gateway
+      tags: [gateway]
+    - role: hardening
+      when: nsa_enable_hardening | bool
+      tags: [hardening]
+    - role: verify
+      tags: [verify]
+
+- name: NSA client (CLI on your workstation)
+  hosts: nsa_clients
+  roles:
+    - role: nsa_client
+      tags: [client]

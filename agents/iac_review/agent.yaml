@@ -1,0 +1,9 @@
+name: iac_review
+description: >
+  Infrastructure-as-code security review. Runs available scanners (checkov, tfsec, trivy) over
+  Terraform, Kubernetes, Dockerfile or CloudFormation, then explains findings and proposes fixes.
+keywords: [terraform, ".tf", kubernetes, k8s, dockerfile, cloudformation, helm, checkov, tfsec, iac, "infrastructure as code", misconfiguration, ansible, ".tfvars", ".yaml"]
+model: main
+sensitivity: medium
+tools: [run_scanner, read_file, list_dir]
+entrypoint: agent.py:IacReviewAgent

@@ -1,0 +1,44 @@
+---
+# Single source of truth for the Ansible edition. Mirrors infra/infra.env.example (NSA_FOO -> nsa_foo).
+
+# tailscale: gateway binds to the Tailscale IP only | localhost: 127.0.0.1 only (use an SSH tunnel)
+nsa_expose: tailscale
+nsa_gateway_port: 4000
+nsa_ts_hostname: nsa-cloud
+# Secret: pass via the environment or ansible-vault, never commit it.
+tailscale_authkey: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTHKEY') }}"
+
+# Models served by the gateway. Upgrading infra = edit these two lines and re-run.
+nsa_model_main_cloud: "qwen3:4b-instruct"
+nsa_model_fast_cloud: "qwen3:4b-instruct"
+nsa_extra_models: []            # extra *chat* models to pull and serve
+nsa_models: "{{ ([nsa_model_main_cloud, nsa_model_fast_cloud] + nsa_extra_models) | unique }}"
+
+# Ollama tuning (CPU box defaults)
+nsa_ollama_keep_alive: 10m
+nsa_ollama_max_loaded: 1
+nsa_ollama_num_parallel: 1
+
+# Supply-chain pins. Empty litellm version = latest (warned). Empty checksum = unverified (warned).
+nsa_litellm_version: ""
+nsa_ollama_install_sha256: ""
+
+nsa_min_disk_gb: 10
+
+# Enterprise extras (off by default so a first run cannot lock you out)
+nsa_enable_hardening: false     # unattended-upgrades + ufw (deny incoming; allow ssh + tailnet gateway)
+nsa_ssh_port: 22
+
+# --- fixed layout (matches the shell edition) ---
+nsa_user: nsa
+nsa_etc_dir: /etc/nsa
+nsa_state_dir: /var/lib/nsa
+nsa_venv_dir: /opt/nsa/venv
+nsa_gateway_env: /etc/nsa/gateway.env
+nsa_gateway_cfg: /etc/nsa/litellm.yaml
+
+# --- client role ---
+nsa_repo_path: "{{ playbook_dir }}/../.."
+nsa_cloud_url: ""               # e.g. http://100.x.y.z:4000/v1
+nsa_cloud_key: ""               # secret: use ansible-vault
+nsa_sync_client_models: true    # write nsa_model_*_cloud into the client's .env

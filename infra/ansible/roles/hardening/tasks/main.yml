@@ -1,0 +1,38 @@
+---
+# Opt-in (nsa_enable_hardening: true). Kept separate so a first run can never lock you out.
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    lock_timeout: 300   # fresh VMs run unattended-upgrades at first boot and hold the apt lock
+    name: unattended-upgrades
+    state: present
+
+- name: Enable automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Allow SSH before enabling the firewall (avoids lock-out)
+  community.general.ufw:
+    rule: allow
+    port: "{{ nsa_ssh_port | string }}"
+    proto: tcp
+
+- name: Allow the gateway only on the tailnet interface
+  community.general.ufw:
+    rule: allow
+    interface: tailscale0
+    direction: in
+    port: "{{ nsa_gateway_port | string }}"
+    proto: tcp
+  when: nsa_expose == 'tailscale'
+
+- name: Default-deny incoming traffic and enable ufw
+  community.general.ufw:
+    state: enabled
+    default: deny
+    direction: incoming

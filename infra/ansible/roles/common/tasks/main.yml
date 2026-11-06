@@ -1,0 +1,63 @@
+---
+- name: Assert supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in ['Ubuntu', 'Debian']
+      - ansible_facts['architecture'] in ['x86_64', 'aarch64']
+      - ansible_facts['service_mgr'] == 'systemd'
+      - nsa_expose in ['tailscale', 'localhost']
+      - (nsa_models | length) > 0
+      - nsa_models | select('match', '^[A-Za-z0-9._:/-]+$') | list | length == nsa_models | length
+    fail_msg: >-
+      Needs Ubuntu/Debian on x86_64 or aarch64 with systemd, nsa_expose of tailscale|localhost,
+      and valid model names. (No systemd? use the shell edition, which has a nohup fallback.)
+
+- name: Check whether the stack is already installed
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /usr/local/bin/ollama
+    - "{{ nsa_venv_dir }}/bin/litellm"
+  register: common_installed
+
+- name: Assert enough free disk on /
+  # A fresh install needs the full amount; a box that already has the stack has legitimately used that space,
+  # so a re-run (repair, update) only needs a small margin.
+  ansible.builtin.assert:
+    that: common_root_free_bytes | int > common_required_bytes | int
+    fail_msg: "Only {{ common_free_gb }}GB free on /, need {{ common_need_gb }}GB"
+  vars:
+    common_root_free_bytes: >-
+      {{ ansible_facts['mounts'] | selectattr('mount', 'equalto', '/') | map(attribute='size_available') | first | default(0) }}
+    common_already_installed: "{{ (common_installed.results | selectattr('stat.exists') | list | length) == 2 }}"
+    common_required_bytes: "{{ (2 if common_already_installed | bool else nsa_min_disk_gb | int) * 1073741824 }}"
+    common_free_gb: "{{ (common_root_free_bytes | int / 1073741824) | round(1) }}"
+    common_need_gb: "{{ (common_required_bytes | int / 1073741824) | round(1) }}"
+
+- name: Install base packages
+  ansible.builtin.apt:
+    lock_timeout: 300   # fresh VMs run unattended-upgrades at first boot and hold the apt lock
+    name: [curl, ca-certificates, gnupg, python3, python3-venv, jq, zstd, openssl]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the service user
+  ansible.builtin.user:
+    name: "{{ nsa_user }}"
+    system: true
+    home: "{{ nsa_state_dir }}"
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ nsa_etc_dir }}", owner: root, group: "{{ nsa_user }}", mode: "0750" }
+    - { path: "{{ nsa_state_dir }}", owner: "{{ nsa_user }}", group: "{{ nsa_user }}", mode: "0750" }
+    - { path: /opt/nsa, owner: root, group: root, mode: "0755" }

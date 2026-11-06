@@ -1,0 +1,16 @@
+---
+- name: Smoke-test the gateway (same script as the shell edition)
+  ansible.builtin.script: "{{ role_path }}/../../../scripts/verify.sh"
+  environment:
+    GATEWAY_URL: "http://{{ gateway_bind_address }}:{{ nsa_gateway_port }}"
+    EXPECT_MODELS: "{{ nsa_models | join(' ') }}"
+  register: verify_result
+  changed_when: false
+  check_mode: false
+  retries: 30   # LiteLLM needs ~20 s to start; allow a few minutes on a slow box
+  delay: 5
+  until: verify_result.rc == 0
+
+- name: Show verification output
+  ansible.builtin.debug:
+    var: verify_result.stdout_lines

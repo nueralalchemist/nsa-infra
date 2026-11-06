@@ -1,0 +1,10 @@
+name: soc_triage
+description: >
+  SOC alert triage. Takes an alert (text or JSON) and returns a structured advisory verdict:
+  severity, likely ATT&CK techniques, reasoning, missing data and recommended next steps.
+  Advisory only: it never takes response actions.
+keywords: [alert, triage, soc, incident, siem, edr, "true positive", "false positive", detection fired, suspicious login, "brute force", escalate, ioc, verdict]
+model: main
+sensitivity: high
+tools: [read_file]
+entrypoint: agent.py:SocTriageAgent

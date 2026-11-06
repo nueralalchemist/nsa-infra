@@ -1,0 +1,8 @@
+# Where each mode sends requests. Both must speak the OpenAI chat-completions API.
+# Values may use ${VAR} or ${VAR:-default}; .env is loaded automatically.
+local:
+  base_url: ${NSA_LOCAL_URL:-http://localhost:11434/v1}
+  api_key: ${NSA_LOCAL_KEY:-ollama}
+cloud:
+  base_url: ${NSA_CLOUD_URL:-}
+  api_key: ${NSA_CLOUD_KEY:-}

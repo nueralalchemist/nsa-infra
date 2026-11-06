@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# secrets and local state
+.env
+*.key
+*.pem
+.nsa/
+
+# agent output
+nsa_out/
+
+# infra: local settings and secrets
+infra/infra.env
+infra/ansible/inventory.ini
+infra/ansible/*.retry
+infra/ansible/group_vars/*vault*
+infra/ansible/group_vars/local*.yml
+.vault_pass
+*.retry

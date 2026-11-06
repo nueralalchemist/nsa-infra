@@ -1,0 +1,23 @@
+[Unit]
+Description=NSA LiteLLM gateway
+After=network-online.target ollama.service tailscaled.service
+Wants=network-online.target
+
+[Service]
+User={{ nsa_user }}
+Group={{ nsa_user }}
+EnvironmentFile={{ nsa_gateway_env }}
+ExecStart={{ nsa_venv_dir }}/bin/litellm --config {{ nsa_gateway_cfg }} --host ${NSA_BIND_ADDR} --port ${NSA_GATEWAY_PORT}
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths={{ nsa_state_dir }}
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

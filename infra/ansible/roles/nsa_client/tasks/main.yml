@@ -1,0 +1,67 @@
+---
+- name: Check prerequisites
+  ansible.builtin.command: python3 -c "import sys, venv, ensurepip; sys.exit(sys.version_info < (3, 10))"
+  changed_when: false
+  failed_when: false
+  register: nsa_client_py_check
+
+- name: Require Python 3.10+ with venv
+  ansible.builtin.assert:
+    that: nsa_client_py_check.rc == 0
+    fail_msg: "Needs python3 >= 3.10 with venv (Debian/Ubuntu: apt install python3-venv)."
+
+- name: Install nsa (editable) into the repo's virtualenv
+  ansible.builtin.pip:
+    name: "{{ nsa_repo_path | realpath }}"
+    editable: true
+    virtualenv: "{{ nsa_repo_path | realpath }}/.venv"
+    virtualenv_command: python3 -m venv
+
+- name: Create .env from the example (never overwrites)
+  ansible.builtin.copy:
+    src: "{{ nsa_repo_path | realpath }}/.env.example"
+    dest: "{{ nsa_repo_path | realpath }}/.env"
+    mode: "0600"
+    force: false
+    remote_src: true
+
+- name: Point nsa at the gateway
+  ansible.builtin.lineinfile:
+    path: "{{ nsa_repo_path | realpath }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    mode: "0600"
+  loop:
+    - { key: NSA_CLOUD_URL, value: "{{ nsa_cloud_url }}" }
+  when: nsa_cloud_url | length > 0
+
+- name: Store the gateway key
+  ansible.builtin.lineinfile:
+    path: "{{ nsa_repo_path | realpath }}/.env"
+    regexp: "^NSA_CLOUD_KEY="
+    line: "NSA_CLOUD_KEY={{ nsa_cloud_key }}"
+    mode: "0600"
+  when: nsa_cloud_key | length > 0
+  no_log: true
+
+- name: Keep client model names in step with the server
+  ansible.builtin.lineinfile:
+    path: "{{ nsa_repo_path | realpath }}/.env"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    mode: "0600"
+  loop:
+    - { key: NSA_MODEL_MAIN_CLOUD, value: "{{ nsa_model_main_cloud }}" }
+    - { key: NSA_MODEL_FAST_CLOUD, value: "{{ nsa_model_fast_cloud }}" }
+  when: nsa_sync_client_models | bool
+
+- name: Run nsa doctor
+  ansible.builtin.command: "{{ nsa_repo_path | realpath }}/.venv/bin/nsa doctor"
+  register: nsa_client_doctor
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Doctor report
+  ansible.builtin.debug:
+    var: nsa_client_doctor.stdout_lines

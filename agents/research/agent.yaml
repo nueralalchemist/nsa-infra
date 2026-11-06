@@ -1,0 +1,9 @@
+name: research
+description: >
+  Research assistant. Reads articles, advisories and papers from URLs and produces a structured
+  digest, or builds a research plan (questions, search queries, sources) for a topic.
+keywords: [research, paper, arxiv, advisory, cve, article, digest, literature, survey, "threat report", blog, investigate topic]
+model: main
+sensitivity: low
+tools: [fetch_url]
+entrypoint: agent.py:ResearchAgent

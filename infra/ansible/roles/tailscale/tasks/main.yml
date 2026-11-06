@@ -1,0 +1,66 @@
+---
+- name: Install the Tailscale signing key (signed apt repository)
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/{{ ansible_facts['distribution'] | lower }}/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    mode: "0644"
+
+- name: Add the Tailscale apt source
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/{{ ansible_facts['distribution'] | lower }}/{{ ansible_facts['distribution_release'] }}.tailscale-keyring.list"
+    dest: /etc/apt/sources.list.d/tailscale.list
+    mode: "0644"
+  register: tailscale_source
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    lock_timeout: 300   # fresh VMs run unattended-upgrades at first boot and hold the apt lock
+    name: tailscale
+    state: present
+    update_cache: "{{ tailscale_source is changed }}"
+
+- name: Enable tailscaled
+  ansible.builtin.service:
+    name: tailscaled
+    state: started
+    enabled: true
+
+- name: Check whether this node is already on the tailnet
+  ansible.builtin.command: tailscale status
+  register: tailscale_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Join the tailnet
+  when: tailscale_status.rc != 0
+  block:
+    - name: Require an auth key
+      ansible.builtin.assert:
+        that: tailscale_authkey | length > 0
+        fail_msg: "Not on the tailnet yet: export TAILSCALE_AUTHKEY (reusable, tagged, expiring) or set it with ansible-vault."
+
+    - name: Stage the auth key in a private temp file
+      ansible.builtin.tempfile:
+        state: file
+        prefix: tskey.
+      register: tailscale_keyfile
+
+    - name: Write the auth key
+      ansible.builtin.copy:
+        dest: "{{ tailscale_keyfile.path }}"
+        content: "{{ tailscale_authkey }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Run tailscale up
+      ansible.builtin.command:
+        argv: [tailscale, up, "--hostname={{ nsa_ts_hostname }}", "--auth-key=file:{{ tailscale_keyfile.path }}"]
+      changed_when: true
+      no_log: true
+  always:
+    - name: Remove the staged auth key
+      ansible.builtin.file:
+        path: "{{ tailscale_keyfile.path }}"
+        state: absent
+      when: tailscale_keyfile is defined and tailscale_keyfile.path is defined

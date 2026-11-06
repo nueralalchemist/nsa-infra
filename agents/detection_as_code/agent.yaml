@@ -1,0 +1,9 @@
+name: detection_as_code
+description: >
+  Detection engineering. Turns a threat or behaviour description into a validated Sigma rule
+  with ATT&CK tags, and optionally tests it against sample JSON log events.
+keywords: [sigma, detection, "detection rule", "detection engineering", siem rule, "write a rule", yara-l, hunting query, ".evtx", "log source", "sysmon", "windows event", "attack technique"]
+model: main
+sensitivity: medium
+tools: [read_file, write_file]
+entrypoint: agent.py:DetectionAsCodeAgent
