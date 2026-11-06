@@ -27,7 +27,8 @@ It is built around one idea: small local models are good at *narrow, structured 
 Requires Python 3.10+, [Ollama](https://ollama.com), and a model.
 
 ```bash
-git clone <your-repo-url> nsa && cd nsa
+git clone https://github.com/nueralalchemist/nsa-infra.git 
+cd nsa-infra
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e .
 cp .env.example .env
