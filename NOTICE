@@ -1,0 +1,20 @@
+NSA: Neural Security Agent
+Copyright 2026 The Neural Security Agent authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party software and models
+-------------------------------
+NSA does not bundle or redistribute the components below. They are used as
+libraries (installed from PyPI by pip) or downloaded by the installers in infra/
+onto the machine you run them on. Each remains under its own license; this list
+reflects the license metadata checked on 2026-11-06 and is informational.
+
+  httpx     (Python library, runtime dependency)         BSD-3-Clause
+  PyYAML    (Python library, runtime dependency)         MIT
+  LiteLLM   (gateway software, installed by infra/)      MIT, per its PyPI metadata
+  Ollama    (model server, installed by infra/)          MIT
+  Qwen3     (default models, pulled with Ollama)         Apache-2.0, per the license shipped with the model
+
+Models are separate works with their own terms. If you change the model names in
+config/models.yaml or infra/infra.env, check the license of the model you choose.

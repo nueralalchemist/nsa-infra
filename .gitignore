@@ -22,3 +22,6 @@ infra/ansible/group_vars/*vault*
 infra/ansible/group_vars/local*.yml
 .vault_pass
 *.retry
+
+# tooling caches
+.ansible/

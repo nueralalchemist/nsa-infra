@@ -1,10 +1,10 @@
-# Phase 5 runbook: test the installer on a fresh instabox machine
+# Runbook: install the gateway on a fresh machine
 
-Goal: prove that **a brand-new machine + this bundle + one script = a working cloud gateway that your WSL `nsa` can use**, and that you can throw the machine away and rebuild it the same way.
+Goal: **a brand-new machine + this folder + one script = a working cloud gateway that your workstation's `nsa` can use**, and a machine you can throw away and rebuild the same way.
 
-Everything below was checked offline (lint, dry-runs, a real LiteLLM gateway on loopback, a read-only install sandbox). What has **never** run: a real root install on a fresh Ubuntu/Debian machine. Expect that this is where any remaining bugs are, and send me the output if something fails (see [If something fails](#if-something-fails)).
+This sequence has been run end to end on real Debian 13 machines (4 vCPU / 8 GiB): fresh install, re-runs, a reboot, a model swap, and a rebuild on a brand-new machine. It has **not** been run on other distributions or architectures, and Tailscale mode and the Ansible edition are untested. If something fails, see [If something fails](#if-something-fails).
 
-Conventions: `WSL$` = your Omen's WSL, `BOX$` = the instabox machine. If you log in as `root` on the box, drop `sudo`.
+Conventions: `WSL$` = your workstation (WSL, Linux or macOS), `BOX$` = the gateway machine. If you log in as `root` on the box, drop `sudo`. The examples use [instabox](https://instabox.sh) for the machine; any Debian/Ubuntu host works.
 
 ## 0. Before you start
 
@@ -25,7 +25,7 @@ Check you can log in: `WSL$ ssh instabox 'hostname; whoami'`.
 If `instabox whoami` works on your WSL, you can skip SSH aliases and scp. This is exactly what was used to test it (`BOX` = the machine name from `instabox ls`):
 
 ```bash
-WSL$ BOX=box-8e9ae3
+WSL$ BOX=my-machine
 WSL$ cd ~/neural_security_agent && instabox push $BOX ./infra /data/home/                       # upload installer
 WSL$ instabox exec $BOX -- 'cd ~/infra && ./shell/bootstrap.sh preflight'                       # check
 WSL$ instabox exec $BOX -- 'cd ~/infra && cp infra.env.example infra.env && sed -i "s/^NSA_EXPOSE=.*/NSA_EXPOSE=localhost/" infra.env'
@@ -190,7 +190,7 @@ BOX$ ansible-playbook site.yml --limit nsa_servers
 
 ## If something fails
 
-Run these on the box and send me the output (they contain no secrets; do **not** send `/etc/nsa/gateway.env`):
+Run these on the box and include the output (they contain no secrets; do **not** send `/etc/nsa/gateway.env`):
 
 ```bash
 BOX$ tail -60 ~/nsa-install.log

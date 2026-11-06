@@ -2,7 +2,8 @@
 # per mode. Moving to bigger infra means editing these names (or the NSA_MODEL_* env vars).
 aliases:
   main:   # reasoning / generation
-    # Empty = the model's default (Qwen3 reasons first: slower but better). Set to "none" on slow CPU-only boxes.
+    # Empty = the model's default (best for reasoning models). "none" turns hidden reasoning off, but only for models
+    # that can toggle it (e.g. qwen3:8b); see docs/CONFIGURATION.md before setting it for a cloud model.
     reasoning_effort:
       local: ${NSA_MAIN_REASONING_LOCAL:-}
       cloud: ${NSA_MAIN_REASONING_CLOUD:-}
